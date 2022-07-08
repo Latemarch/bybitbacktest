@@ -40,11 +40,13 @@ maxtomin = []
 
 positionl = 0
 positions = 0
+asset = 100
+assets = 100
 
 kj = 0 #kj is the index to check what is the data like.
 for h in range(start,last):
 
-    with gzip.open('DATA/%03d.gz' % h, 'rb') as f:
+    with gzip.open('D:/tbproject/BTCUSD/DATA/%03d.gz' % h, 'rb') as f:
         data = f.readlines()
 
     daytics = []
@@ -56,7 +58,7 @@ for h in range(start,last):
 
     if h == start:
         if kj == 0: #Using kj, we can see how is the data like
-            print(row)
+            #print(row)
             kj = 1
 
         price = float(daytics[1][4])
@@ -78,6 +80,7 @@ for h in range(start,last):
         # server give me the data bundle which regards datas made similar time as same time 
 
         # 1 min candle ===================================================================
+        # with bolband
         if minute != tictime//60:
             k+=1
             minute = tictime//60
@@ -115,6 +118,36 @@ for h in range(start,last):
                     maxtomin.append(abs(localmaxval[-1] - localminval[-1]))
         # 1 min candle ===================================================================
 
+        ###### Here, U can write ur strategy. U have bundle of ticdata(got once) from bybit server 
+        if not aam:
+            continue
+
+        price = float(row[4])
+
+        if positionl:
+            if price > bol_up[-1]:# or 2*mintomax[-1] < price -lpoint:
+                positionl = 0
+                temp = asset
+                asset = asset*price/lpoint
+                print('Selling longposition',k,round(asset,2),round(asset - temp,2))
+        else:
+            if price < bol_down[-1] - 30:
+                positionl = 1
+                lpoint = price
+                print('buying longposition',k)
+
+        if positions:
+            if price < bol_down[-1]:# or 2*mintomax[-1] < price -lpoint:
+                positions = 0
+                temp = assets
+                asset = assets*price/spoint
+                print('#Selling short position',k,round(asset,2),round(asset - temp,2))
+        else:
+            if price > bol_up[-1] + 30:
+                positions = 1
+                spoint = price
+                print('#buying short position',k)
+
             
 #=============== Candle Chart =================
 index = pd.DatetimeIndex(candletime)
@@ -129,7 +162,6 @@ with open('ma.txt','w') as f:
 ma5 = go.Scatter(x=ohlc_df.index, y=ohlc_df['ma5'], line=dict(color='black', width=0.8), name='ma5')
 bbup = go.Scatter(x=ohlc_df.index, y=ohlc_df['bbup'], line=dict(color='blue', width=0.8), name='Bol_up')
 bbdown = go.Scatter(x=ohlc_df.index, y=ohlc_df['bbdown'], line=dict(color='blue', width=0.8), name='Bol_down')
-print(ohlc_df['ma5'])
 '''
 colorset = mpf.make_marketcolors(up='tab:red', down='tab:blue', volume='tab:blue')
 s = mpf.make_mpf_style(marketcolors = colorset)
