@@ -17,7 +17,7 @@ minute = 0
 tictime = 0
 ohlc = np.empty((1,4))
 start = 0
-last = 20
+last = 1
 aam = 0
 mean = []
 candletime = []
@@ -30,13 +30,15 @@ ma = 50
 k = 0
 
 # Constants for getting local maxima/minima 
-a = 10 # Half of the local length
+a = 5 # Half of the local length
 b = a - 1 
 c = 2*a - 1 # Local length  
 localmaxval = []
 localminval = []
 mintomax = []
 maxtomin = []
+localmaxpoint =[]
+localminpoint =[]
 
 positionl = 0
 positions = 0
@@ -45,7 +47,7 @@ assets = 100
 
 kj = 0 #kj is the index to check what is the data like.
 for h in range(start,last):
-    print(round(start/(last-start),2,'%'))
+    print(int(h/(last-start)*100),'%')
 
     with gzip.open('D:/tbproject/BTCUSD/DATA/%03d.gz' % h, 'rb') as f:
         data = f.readlines()
@@ -90,21 +92,14 @@ for h in range(start,last):
             lenofcandle.append(max(ohlc_list)-min(ohlc_list))
             ohlc_list = []
 
-            if k >= ma:
-                candlestd = np.array(lenofcandle[-ma:])
-                std_c.append(np.std(candlestd))
-                std_c = std_c[-ma:]
-                aa = np.array(std_c)
-                aam = np.mean(aa)
-                std_p = np.std(ohlc[-ma:,3])
-                mean.append(np.mean(ohlc[-10:,3]))
-
-            if np.argmax(ohlc[-c:,2]) == a:
-                localmaxval.append(ohlc[-a,2])
+            if np.argmax(ohlc[-c:,1]) == b:
+                localmaxval.append(ohlc[-a,1])
+                localmaxpoint.append(candletime[-a])
                 if localminval:
                     mintomax.append(abs(localmaxval[-1] - localminval[-1]))
-            if np.argmin(ohlc[-c:,3]) == a:
-                localminval.append(ohlc[-a,3])
+            if np.argmin(ohlc[-c:,2]) == b:
+                localminval.append(ohlc[-a,2])
+                localminpoint.append(candletime[-a])
                 if localmaxval:
                     maxtomin.append(abs(localmaxval[-1] - localminval[-1]))
         # 1 min candle ===================================================================
@@ -145,15 +140,17 @@ index = pd.DatetimeIndex(candletime)
 ohlc_df = DataFrame(data=ohlc, index=index, columns=['open','high','low','close'])
 ohlc_df = ohlc_df.astype(float)
 ohlc_df['ma5'] = ohlc_df['close'].rolling(20).mean()
-
-with open('ma.txt','w') as f:
-    f.writelines(str(mean))
+ohlc_df['max'] = np.nan
+ohlc_df['min'] = np.nan
 ma5 = go.Scatter(x=ohlc_df.index, y=ohlc_df['ma5'], line=dict(color='black', width=0.8), name='ma5')
-'''
-colorset = mpf.make_marketcolors(up='tab:red', down='tab:blue', volume='tab:blue')
-s = mpf.make_mpf_style(marketcolors = colorset)
-mpf.plot(ohlc_df,type = 'candle',style=s)
-'''
+
+for i, val in enumerate(localmaxval):
+    ohlc_df.loc[localmaxpoint[i],'max'] = val + 20
+for i, val in enumerate(localminval):
+    ohlc_df.loc[localminpoint[i],'max'] = val - 20
+maxval = go.Scatter(x=ohlc_df.index, y=ohlc_df['max'], mode ="markers", name='ma5')
+minval = go.Scatter(x=ohlc_df.index, y=ohlc_df['max'], mode ="markers", name='ma5')
+
 candle = go.Candlestick(
     x=ohlc_df.index,
     open=ohlc_df['open'],
@@ -161,26 +158,20 @@ candle = go.Candlestick(
     low=ohlc_df['low'],
     close=ohlc_df['close']
     )
-    
+
+fig = go.Figure(data=[candle,maxval,minval])
+fig.write_image("fig1.svg")
+fig.show()
+
+print(ohlc_df)
+
 mintomax = np.array(mintomax)
 mintomax = DataFrame(data=mintomax, columns =['mintomax'])
 maxtomin = np.array(maxtomin)
 maxtomin = DataFrame(data=maxtomin, columns =['maxtomin'])
 minmax = pd.concat([mintomax,maxtomin],axis=1)
-minmax.to_excel('minmax.xlsx')
-
-
-'''
+minmax.to_excel('minmax1.xlsx')
 ohlc_df.to_excel('ohlc.xlsx')
-fig = go.Figure(data=[candle])
-fig.write_image("fig1.svg")
-#fig = go.Figure(data=candle)
-fig.show()
-'''
-
-
-
-
 
 
 
