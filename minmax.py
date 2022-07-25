@@ -39,6 +39,11 @@ mintomax = []
 maxtomin = []
 localmaxpoint =[]
 localminpoint =[]
+overshooting_long= []
+overshooting_short= []
+count_itoa = 0
+count_atoi = 0
+
 
 positionl = 0
 positions = 0
@@ -97,11 +102,20 @@ for h in range(start,last):
                 localmaxpoint.append(candletime[-a])
                 if localminval:
                     mintomax.append(abs(localmaxval[-1] - localminval[-1]))
+                    count_itoa += 1
+                    if count_itoa >1 and mintomax[-1] > 2*sum(mintomax[-count_itoa:-1])/(count_itoa-1):
+                        print(count_itoa,'//',mintomax[-1],int(2*sum(mintomax[-count_itoa:-1])/count_itoa))
+                        overshooting_long.append(count_itoa)
+                        count_itoa = 0
             if np.argmin(ohlc[-c:,2]) == b:
                 localminval.append(ohlc[-a,2])
                 localminpoint.append(candletime[-a])
                 if localmaxval:
                     maxtomin.append(abs(localmaxval[-1] - localminval[-1]))
+                    count_atoi += 1
+                    if maxtomin[-1] > 300:
+                        overshooting_short.append(count_atoi)
+                        count_atoi = 0
         # 1 min candle ===================================================================
 
         ###### Here, U can write ur strategy. U have bundle of ticdata(got once) from bybit server 
@@ -142,14 +156,14 @@ ohlc_df = ohlc_df.astype(float)
 ohlc_df['ma5'] = ohlc_df['close'].rolling(20).mean()
 ohlc_df['max'] = np.nan
 ohlc_df['min'] = np.nan
-ma5 = go.Scatter(x=ohlc_df.index, y=ohlc_df['ma5'], line=dict(color='black', width=0.8), name='ma5')
+#ma5 = go.Scatter(x=ohlc_df.index, y=ohlc_df['ma5'], line=dict(color='black', width=0.8), name='ma5')
 
 for i, val in enumerate(localmaxval):
     ohlc_df.loc[localmaxpoint[i],'max'] = val + 20
 for i, val in enumerate(localminval):
-    ohlc_df.loc[localminpoint[i],'max'] = val - 20
-maxval = go.Scatter(x=ohlc_df.index, y=ohlc_df['max'], mode ="markers", name='ma5')
-minval = go.Scatter(x=ohlc_df.index, y=ohlc_df['max'], mode ="markers", name='ma5')
+    ohlc_df.loc[localminpoint[i],'min'] = val - 20
+maxval = go.Scatter(x=ohlc_df.index, y=ohlc_df['max'], mode ="markers", marker=dict(color='green',symbol= '6'), name='Max')
+minval = go.Scatter(x=ohlc_df.index, y=ohlc_df['min'], mode ="markers", marker=dict(color='red',symbol = '5'), name='Min')
 
 candle = go.Candlestick(
     x=ohlc_df.index,
@@ -159,11 +173,11 @@ candle = go.Candlestick(
     close=ohlc_df['close']
     )
 
+'''
 fig = go.Figure(data=[candle,maxval,minval])
 fig.write_image("fig1.svg")
 fig.show()
-
-print(ohlc_df)
+'''
 
 mintomax = np.array(mintomax)
 mintomax = DataFrame(data=mintomax, columns =['mintomax'])
@@ -173,7 +187,8 @@ minmax = pd.concat([mintomax,maxtomin],axis=1)
 minmax.to_excel('minmax1.xlsx')
 ohlc_df.to_excel('ohlc.xlsx')
 
-
+print(overshooting_short)
+print(overshooting_long)
 
 
 
