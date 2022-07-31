@@ -46,7 +46,12 @@ count_atoi = 0
 
 
 positionl = 0
+history_l = []
+history_l_v = []
+history_ls = []
+history_ls_v = []
 positions = 0
+history_s = []
 asset = 100
 assets = 100
 
@@ -104,7 +109,7 @@ for h in range(start,last):
                     mintomax.append(abs(localmaxval[-1] - localminval[-1]))
                     count_itoa += 1
                     if count_itoa >1 and mintomax[-1] > 2*sum(mintomax[-count_itoa:-1])/(count_itoa-1):
-                        print(count_itoa,'//',mintomax[-1],int(2*sum(mintomax[-count_itoa:-1])/count_itoa))
+                        #print(count_itoa,'//',mintomax[-1],int(2*sum(mintomax[-count_itoa:-1])/count_itoa))
                         overshooting_long.append(count_itoa)
                         count_itoa = 0
             if np.argmin(ohlc[-c:,2]) == b:
@@ -119,44 +124,63 @@ for h in range(start,last):
         # 1 min candle ===================================================================
 
         ###### Here, U can write ur strategy. U have bundle of ticdata(got once) from bybit server 
-        if not aam:
-            continue
+            if not k > 120: continue
+        #if not mintomax or not maxtomin : continue
+            movingaverage1 = np.mean(ohlc[-20:,3])
+            movingaverage2 = np.mean(ohlc[-50:,3])
+            movingaverage3 = np.mean(ohlc[-120:,3])
+        if not k > 120: continue
 
         price = float(row[4])
 
-        if positionl:
-            if price > bol_up[-1]:# or 2*mintomax[-1] < price -lpoint:
-                positionl = 0
-                temp = asset
-                asset = asset*price/lpoint
-                print('Selling longposition',k,round(asset,2),round(asset - temp,2))
-        else:
-            if price < bol_down[-1] - 30:
+        if movingaverage1 > movingaverage2 > movingaverage3: 
+            if price < movingaverage2 and not positionl:
                 positionl = 1
-                lpoint = price
-                print('buying longposition',k)
+                history_l.append(candletime[-1])
+                history_l_v.append(price)
+                price_l = price
+                print('buy_L')
 
-        if positions:
-            if price < bol_down[-1]:# or 2*mintomax[-1] < price -lpoint:
-                positions = 0
-                temp = assets
-                asset = assets*price/spoint
-                print('#Selling short position',k,round(asset,2),round(asset - temp,2))
-        else:
-            if price > bol_up[-1] + 30:
+        elif movingaverage1 < movingaverage2 < movingaverage3: 
+            if price > movingaverage2 and not positions:
                 positions = 1
-                spoint = price
-                print('#buying short position',k)
+                price_s = price
+            if positionl: 
+                positionl = 0
+                history_ls.append(candletime[-1])
+                history_ls_v.append(price)
+                asset = asset*price_l/price - asset*0.00058
+                print(round(asset,2),'/',price_l, price)
+
+        else:
+            if positionl: 
+                positionl = 0
+                history_ls.append(candletime[-1])
+                history_ls_v.append(price)
+                asset = asset*price_l/price - asset*0.00058
+                print(round(asset,2),'/',price_l, price)
+            if positions: 
+                positions = 0
+        
+
+
 
             
 #=============== Candle Chart =================
 index = pd.DatetimeIndex(candletime)
 ohlc_df = DataFrame(data=ohlc, index=index, columns=['open','high','low','close'])
 ohlc_df = ohlc_df.astype(float)
-ohlc_df['ma5'] = ohlc_df['close'].rolling(20).mean()
+ohlc_df['ma10'] = ohlc_df['close'].rolling(20).mean()
+ohlc_df['ma20'] = ohlc_df['close'].rolling(50).mean()
+ohlc_df['ma50'] = ohlc_df['close'].rolling(120).mean()
 ohlc_df['max'] = np.nan
 ohlc_df['min'] = np.nan
-#ma5 = go.Scatter(x=ohlc_df.index, y=ohlc_df['ma5'], line=dict(color='black', width=0.8), name='ma5')
+ohlc_df['buy_long'] = np.nan
+ohlc_df['sell_long'] = np.nan
+ma10 = go.Scatter(x=ohlc_df.index, y=ohlc_df['ma10'], line=dict(color='black', width=0.8), name='ma10')
+ma10 = go.Scatter(x=ohlc_df.index, y=ohlc_df['ma10'], line=dict(color='black', width=0.8), name='ma10')
+ma20 = go.Scatter(x=ohlc_df.index, y=ohlc_df['ma20'], line=dict(color='green', width=0.8), name='ma20')
+ma50 = go.Scatter(x=ohlc_df.index, y=ohlc_df['ma50'], line=dict(color='red', width=0.8), name='ma50')
 
 for i, val in enumerate(localmaxval):
     ohlc_df.loc[localmaxpoint[i],'max'] = val + 20
@@ -164,6 +188,14 @@ for i, val in enumerate(localminval):
     ohlc_df.loc[localminpoint[i],'min'] = val - 20
 maxval = go.Scatter(x=ohlc_df.index, y=ohlc_df['max'], mode ="markers", marker=dict(color='green',symbol= '6'), name='Max')
 minval = go.Scatter(x=ohlc_df.index, y=ohlc_df['min'], mode ="markers", marker=dict(color='red',symbol = '5'), name='Min')
+
+for i, val in enumerate(history_l_v):
+    ohlc_df.loc[history_l[i],'buy_long'] = val - 100
+for i, val in enumerate(history_ls_v):
+    ohlc_df.loc[history_ls[i],'sell_long'] = val + 100
+
+history_SL = go.Scatter(x=ohlc_df.index, y=ohlc_df['sell_long'], mode ="markers", marker=dict(color='green',symbol= '6'), name='Sell long')
+history_BL = go.Scatter(x=ohlc_df.index, y=ohlc_df['buy_long'], mode ="markers", marker=dict(color='red',symbol = '5'), name='Buy long')
 
 candle = go.Candlestick(
     x=ohlc_df.index,
@@ -173,11 +205,9 @@ candle = go.Candlestick(
     close=ohlc_df['close']
     )
 
-'''
-fig = go.Figure(data=[candle,maxval,minval])
+fig = go.Figure(data=[candle,history_SL,history_BL,ma10,ma20,ma50])
 fig.write_image("fig1.svg")
 fig.show()
-'''
 
 mintomax = np.array(mintomax)
 mintomax = DataFrame(data=mintomax, columns =['mintomax'])
@@ -187,8 +217,8 @@ minmax = pd.concat([mintomax,maxtomin],axis=1)
 minmax.to_excel('minmax1.xlsx')
 ohlc_df.to_excel('ohlc.xlsx')
 
-print(overshooting_short)
-print(overshooting_long)
+#print(overshooting_short)
+#print(overshooting_long)
 
 
 
