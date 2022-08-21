@@ -9,6 +9,7 @@ import datetime
 import plotly.graph_objects as go
 
 from pandas.core.frame import DataFrame
+#mac
 
 
 
@@ -59,7 +60,7 @@ kj = 0 #kj is the index to check what is the data like.
 for h in range(start,last):
     print(int(h/(last-start)*100),'%')
 
-    with gzip.open('D:/tbproject/BTCUSD/DATA/%03d.gz' % h, 'rb') as f:
+    with gzip.open('/Users/jun/btcusd/%03d.gz' % h, 'rb') as f:
         data = f.readlines()
 
     daytics = []
