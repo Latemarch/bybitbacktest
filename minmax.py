@@ -18,7 +18,7 @@ minute = 0
 tictime = 0
 ohlc = np.empty((1,4))
 start = 0
-last = 1
+last = 5
 aam = 0
 mean = []
 candletime = []
@@ -48,12 +48,12 @@ count_atoi = 0
 
 positionl = 0
 history_l = []
-history_l_v = []
 history_ls = []
-history_ls_v = []
 positions = 0
 history_s = []
 history_ss = []
+stopbuyings = 0
+stopbuyingl = 0
 asset = 100
 assets = 100
 
@@ -140,42 +140,38 @@ for h in range(start,last):
                 history_ls.append([candletime[-1]])
                 history_ls[-1].append(price)
                 asset = asset*price_l/price - asset*0.00058
-                print(round(asset,2),'/',price_l, price,'Profit')
+                print(round(asset,2),'/',price_l, price)
+                if price < lossprice_L > price: stopbuyingl = 1
 
+        if positions:
+            if price < profitprice_s or lossprice_s < price:
+                positions = 0
+                history_ss.append([candletime[-1]])
+                history_ss[-1].append(price)
+                assets = assets*price_s/price - assets*0.00058
+                print('--',round(assets,2),'/',price_s, price)
+                stopbuyings = 1
+                #if lossprice_s < price: stopbuyings = 1
 
         if movingaverage1 > movingaverage2 > movingaverage3: 
-            if price < movingaverage2 and not positionl:
+            stopbuyings = 0
+            if price < movingaverage2 and not positionl and not stopbuyingl:
                 positionl = 1
                 history_l.append([candletime[-1]])
                 history_l[-1].append(price)
                 price_l = price
-                profitprice_L = price*1.005
+                profitprice_L = price*1.007
                 lossprice_L = price*0.995
-                print('buy_L')
 
         elif movingaverage1 < movingaverage2 < movingaverage3: 
-            if price > movingaverage2 and not positions:
+            stopbuyingl = 0
+            if not positions and not stopbuyings:# and price > movingaverage2:
                 positions = 1
                 history_s.append([candletime[-1]])
                 history_s[-1].append(price)
                 price_s = price
-                print('buy_s')
-            if positionl: 
-                positionl = 0
-                history_ls.append([candletime[-1]])
-                history_ls[-1].append(price)
-                asset = asset*price_l/price - asset*0.00058
-                print(round(asset,2),'/',price_l, price)
-
-        else:
-            if positionl: 
-                positionl = 0
-                history_ls.append([candletime[-1]])
-                history_ls[-1].append(price)
-                asset = asset*price_l/price - asset*0.00058
-                print(round(asset,2),'/',price_l, price)
-            if positions: 
-                positions = 0
+                profitprice_s = price*0.99
+                lossprice_s = price*1.005
         
 
 
@@ -204,9 +200,9 @@ for i, val in enumerate(localminval):
 maxval = go.Scatter(x=ohlc_df.index, y=ohlc_df['max'], mode ="markers", marker=dict(color='green',symbol= '6'), name='Max')
 minval = go.Scatter(x=ohlc_df.index, y=ohlc_df['min'], mode ="markers", marker=dict(color='red',symbol = '5'), name='Min')
 
-for i, val in enumerate(history_l):
+for i, val in enumerate(history_s):
     ohlc_df.loc[val[0],'buy_long'] = val[1] - 100
-for i, val in enumerate(history_ls):
+for i, val in enumerate(history_ss):
     ohlc_df.loc[val[0],'sell_long'] = val[1] + 100
 
 history_SL = go.Scatter(x=ohlc_df.index, y=ohlc_df['sell_long'], mode ="markers", 
