@@ -16,13 +16,30 @@ position = 0
 PL = 0
 price = 1000
 balance = [[0,0,100],[0,0,100]]
-print(balance)
-def buy(qty, position,asset):
-    global PL
-    print(qty,asset,PL)
-    i = 0 if position == 'long' else 1
-    balance[i][1] = price 
-    asset.append(1)
-buy(10,'long',asset)
-print(balance)
-
+history = [[[0,0]],[[0,0]],[[0,0]],[[0,0]]]
+#history[1].append([2])
+#history[1][-1].append(2)
+candletime = 1010
+price = 4000
+print(history)
+print('---------')
+def record_history(position,buyorsell):
+    i = 1 if position == 'long' else 0
+    k = 0 if buyorsell == 'buy' else 2
+    history[i+k].append([candletime])
+    history[i+k][-1].append(4000)
+record_history('long','buy')
+record_history('long','sell')
+record_history('short','buy')
+record_history('short','sell')
+candletime = 2020
+price = 8000
+record_history('long','buy')
+record_history('long','sell')
+record_history('short','buy')
+record_history('short','sell')
+for i in range(4): 
+    history[i].pop(0)
+print(history[1])
+for i, val in enumerate(history):
+    print(val)

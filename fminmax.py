@@ -12,17 +12,22 @@ from pandas.core.frame import DataFrame
 #mac
 
 
-def buy(position):
-    i = 1 if position == 'long' else 0
-    balance[i][0] = 1
-    balance[i][1] = price
 
-def sell(position):
+def traiding(position, buyorsell):
     i = 1 if position == 'long' else 0
-    balance[i][0] = 0
-    add = ((i*2)-1)*(price - balance[i][1])*qty-0.058
-    balance[i][2] += add
+    if buyorsell == 'buy':
+        balance[i][0] = 1
+        balance[i][1] = price
+    else:
+        balance[i][0] = 0
+        add = ((i*2)-1)*(price - balance[i][1])*qty-0.058
+        balance[i][2] += add
 
+def record_history(position,bors):
+    i = 1 if position == 'long' else 0
+    k = 0 if bors == 'buy' else 2
+    history[i+k].append([candletime[-1]])
+    history[i+k][-1].append(price)
 
 
 ohlc_list = []
@@ -30,17 +35,12 @@ minute = 0
 tictime = 0
 ohlc = np.empty((1,4))
 start = 0
-last = 4
+last = 30
 aam = 0
 mean = []
 balance = [[0,0,100],[0,0,100]]
 candletime = []
 lenofcandle = []
-std_c = []
-std_p = []
-bol_up = [np.nan]
-bol_down = [np.nan]
-ma = 50
 k = 0
 
 # Constants for getting local maxima/minima 
@@ -58,21 +58,15 @@ overshooting_short= []
 count_itoa = 0
 count_atoi = 0
 
+losstimeL = 0
+losstimeS = 0
 
-positionl = 0
-history_l = []
-history_ls = []
-positions = 0
-history_s = []
-history_ss = []
-stopbuyings = 0
-stopbuyingl = 0
-asset = 100
-assets = 100
+history = [[[0,0]],[[0,0]],[[0,0]],[[0,0]]]
+stopbuyings = 1
+stopbuyingl = 1
+kj = 1
 
-kj = 0 #kj is the index to check what is the data like.
 for h in range(start,last):
-    print(int(h/(last-start)*100),'%')
 
     with gzip.open('/Users/jun/btcusd/%03d.gz' % h, 'rb') as f:
         data = f.readlines()
@@ -85,9 +79,6 @@ for h in range(start,last):
     daytics.reverse()
 
     if h == start:
-        if kj == 0: #Using kj, we can see how is the data like
-            #print(row)
-            kj = 1
 
         price = float(daytics[1][4])
         candletime.append(time.strftime('%Y-%m-%d %H:%M:%S',time.localtime(float(daytics[1][0]))))
@@ -108,8 +99,7 @@ for h in range(start,last):
         # Now, I got the data from the server, 
         # server give me the data bundle which regards datas made similar time as same time 
 
-        # 1 min candle ===================================================================
-        # with bolband
+        # 1 min candle ==================================================
         if minute != tictime//60:
             k+=1
             minute = tictime//60
@@ -117,78 +107,66 @@ for h in range(start,last):
             ohlc = np.append(ohlc,[[ohlc_list[0],max(ohlc_list),min(ohlc_list),ohlc_list[-1]]],axis = 0)
             lenofcandle.append(max(ohlc_list)-min(ohlc_list))
             ohlc_list = []
-
-            if np.argmax(ohlc[-c:,1]) == b:
-                localmaxval.append(ohlc[-a,1])
-                localmaxpoint.append(candletime[-a])
-                if localminval:
-                    mintomax.append(abs(localmaxval[-1] - localminval[-1]))
-                    count_itoa += 1
-                    if count_itoa >1 and mintomax[-1] > 2*sum(mintomax[-count_itoa:-1])/(count_itoa-1):
-                        #print(count_itoa,'//',mintomax[-1],int(2*sum(mintomax[-count_itoa:-1])/count_itoa))
-                        overshooting_long.append(count_itoa)
-                        count_itoa = 0
-            if np.argmin(ohlc[-c:,2]) == b:
-                localminval.append(ohlc[-a,2])
-                localminpoint.append(candletime[-a])
-                if localmaxval:
-                    maxtomin.append(abs(localmaxval[-1] - localminval[-1]))
-                    count_atoi += 1
-                    if maxtomin[-1] > 300:
-                        overshooting_short.append(count_atoi)
-                        count_atoi = 0
-        # 1 min candle ===================================================================
+        # 1 min candle ==================================================
 
         ###### Here, U can write ur strategy. U have bundle of ticdata(got once) from bybit server 
             if not k > 120: continue
-        #if not mintomax or not maxtomin : continue
             movingaverage1 = np.mean(ohlc[-20:,3])
             movingaverage2 = np.mean(ohlc[-50:,3])
             movingaverage3 = np.mean(ohlc[-120:,3])
+            if movingaverage1 > movingaverage2 > movingaverage3:
+                if not trend == 'long' and 15<k-losstimeS:stopbuyings = 0
+                trend = 'long'
+            elif movingaverage1 < movingaverage2 < movingaverage3: 
+                if not trend == 'short' and 15<k-losstimeL:stopbuyingl = 0
+                trend = 'short'
+            else: trend = 'None'
         if not k > 120: continue
 
         price = float(row[4])
         if balance[1][0]:
-            if price < lossprice_L or profitprice_L < price:
-                sell('long')
-                print(round(balance[1][2],2),'/',balance[1][1], price)
-                history_ls.append([candletime[-1]])
-                history_ls[-1].append(price)
-                if price < lossprice_L : stopbuyingl = 1
+            if price < lossprice_L:
+                traiding('long','sell')
+                record_history('long','sell')
+                #print(round(balance[1][2],2))
+                if price < lossprice_L : 
+                    stopbuyingl = 1
+                    losstimeL = k
+            elif price > profitprice_L and trend != 'long':
+                traiding('long','sell')
+                record_history('long','sell')
+
 
         if balance[0][0]:
             if price < profitprice_s or lossprice_s < price:
-                sell('short')
-                history_ss.append([candletime[-1]])
-                history_ss[-1].append(price)
-                print('--',round(balance[0][2],2),'/',balance[0][1], price)
-                stopbuyings = 1
-                #if lossprice_s < price: stopbuyings = 1
+                traiding('short','sell')
+                record_history('short','sell')
+                #print(round(balance[0][2],2),'--')
+                #stopbuyings = 1
+                if lossprice_s < price: 
+                    stopbuyings = 1
+                    losstimeS = k
 
-        if movingaverage1 > movingaverage2 > movingaverage3: 
-            stopbuyings = 0
-            if price < movingaverage2 and not balance[1][0] and not stopbuyingl:
-                #positionl = 1
-                #price_l = price
-                buy('long')
-                profitprice_L = price*1.005
-                lossprice_L = price*0.997
-                history_l.append([candletime[-1]])
-                history_l[-1].append(price)
+        if balance[1][0] or balance[0][0]: continue
+        if trend == 'long':
+            if price < movingaverage1 and not balance[1][0] and not stopbuyingl:
+                traiding('long','buy')
+                record_history('long','buy')
+                profitprice_L = price*1.01
+                lossprice_L = price*0.995
+                continue
 
-        elif movingaverage1 < movingaverage2 < movingaverage3: 
-            stopbuyingl = 0
-            if not balance[0][0] and not stopbuyings:# and price > movingaverage2:
-                buy('short')
+        elif trend == 'short':
+            if not balance[0][0] and not stopbuyings and price > movingaverage1:
+                traiding('short','buy')
+                record_history('short','buy')
                 profitprice_s = price*0.99
                 lossprice_s = price*1.005
-                history_s.append([candletime[-1]])
-                history_s[-1].append(price)
         
+    print(h,'/',last-start,'))',round(balance[0][2],2),round(balance[1][2],2), round(100*(float(daytics[0][4])-float(daytics[-1][4]))/float(daytics[0][4]),2))
 
 
-
-            
+'''            
 #=============== Candle Chart =================
 index = pd.DatetimeIndex(candletime)
 ohlc_df = DataFrame(data=ohlc, index=index, columns=['open','high','low','close'])
@@ -212,10 +190,13 @@ for i, val in enumerate(localminval):
 maxval = go.Scatter(x=ohlc_df.index, y=ohlc_df['max'], mode ="markers", marker=dict(color='green',symbol= '6'), name='Max')
 minval = go.Scatter(x=ohlc_df.index, y=ohlc_df['min'], mode ="markers", marker=dict(color='red',symbol = '5'), name='Min')
 
-for i, val in enumerate(history_s):
-    ohlc_df.loc[val[0],'buy_long'] = val[1] - 100
-for i, val in enumerate(history_ss):
-    ohlc_df.loc[val[0],'sell_long'] = val[1] + 100
+for i in range(4): history[i].pop(0)
+
+k = 1 #select position u wanna see (0=short,1=long)
+for i, val in enumerate(history[k]):
+    ohlc_df.loc[val[0],'buy_long'] = val[1] - 200
+for i, val in enumerate(history[k+2]):
+    ohlc_df.loc[val[0],'sell_long'] = val[1] + 200
 
 history_SL = go.Scatter(x=ohlc_df.index, y=ohlc_df['sell_long'], mode ="markers", 
                         marker=dict(color='green',symbol= '6'), name='Sell long')
@@ -244,8 +225,7 @@ ohlc_df.to_excel('ohlc.xlsx')
 
 #print(overshooting_short)
 #print(overshooting_long)
-
-
+'''
 
 
 
