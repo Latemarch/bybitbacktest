@@ -16,7 +16,7 @@ position = 0
 PL = 0
 price = 1000
 balance = [[0,0,100],[0,0,100]]
-history = [[[0,0]],[[0,0]],[[0,0]],[[0,0]]]
+history = [[[0,0]],[[0,0]],[[0,0]],[[0,0]],[0]]
 #history[1].append([2])
 #history[1][-1].append(2)
 candletime = 1010
@@ -41,5 +41,7 @@ record_history('short','sell')
 for i in range(4): 
     history[i].pop(0)
 print(history[1])
+history[4].append(1212)
 for i, val in enumerate(history):
     print(val)
+print(history[4][1])
