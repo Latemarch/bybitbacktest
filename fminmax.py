@@ -38,19 +38,23 @@ def record_history(position,bors):
     j = 0 if bors == 'buy' else 2
     history[i+j].append([candletime[-1]])
     history[i+j][-1].append(price)
-def local_extremum(a): 
+
+def local_extremum(a,list,maxormin):#a is half-length 
     c = a*2-1
     b = a-1
-    if np.argmax(ohlc[-c:,1]) == b:
-        localextrema[0].append([candletime[-a]])
-        localextrema[0][-1].append(ohlc[-a,1])
-        if localextrema[1][-1][0]:
-            localextrema[2].append(abs(localextrema[0][-1][1] - localextrema[1][-1][1]))
-    if np.argmin(ohlc[-c:,2]) == b:
+    i = [0,1,2] if maxormin == 'max' else [1,0,3]
+    if (i[0]==0 and np.argmax(list[-c:]) == b) or (i[0]==1 and np.argmin(list[-c:])==b):
+        localextrema[i[0]].append([candletime[-a]])
+        localextrema[i[0]][-1].append(list[-a])
+        if localextrema[i[1]][-1][0]:
+            localextrema[i[2]].append(abs(localextrema[i[0]][-1][1] - localextrema[i[1]][-1][1]))
+    '''
+    if np.argmin(list[-c:,2]) == b:
         localextrema[1].append([candletime[-a]])
-        localextrema[1][-1].append(ohlc[-a,2])
+        localextrema[1][-1].append(list[-a])
         if localextrema[0][-1][0]:
             localextrema[3].append(abs(localextrema[0][-1][1] - localextrema[1][-1][1]))
+    '''
 
 
 
@@ -74,7 +78,7 @@ tradingcountS= [0,0]
 tradingcountL= [0,0]
 
 start = 0
-last = 90
+last = 40
 for h in range(start,last):
 
     with gzip.open('/Users/jun/btcusd/%03d.gz' % h, 'rb') as f:
@@ -122,7 +126,6 @@ for h in range(start,last):
             volume = 0
             ohlc_list = []
         # 1 min candle ==================================================
-            local_extremum(10)
 
         ###### Here, U can write ur strategy. U have bundle of ticdata(got once) from bybit server 
             ma1 = np.mean(ohlc[-12:,3])
@@ -131,6 +134,8 @@ for h in range(start,last):
             macd = np.append(macd,ma1-ma2)
             macd_sig = np.mean(macd[-9:])
             macd_osc.append(macd[-1] - macd_sig)
+            local_extremum(20,macd_osc,'max')
+            local_extremum(20,macd_osc,'min')
 
         if not k > 50: continue
 
@@ -141,7 +146,7 @@ for h in range(start,last):
             if price < lossprice_L or price > profitprice_L:
                 trading('long','sell')
                 record_history('long','sell')
-            elif macd_osc[-1] > 400:
+            elif macd_osc[-1] > ppmacd:
                 trading('long','sell')
                 record_history('long','sell')
 
@@ -151,19 +156,20 @@ for h in range(start,last):
             if lossprice_s < price or price < profitprice_s: 
                 trading('short','sell')
                 record_history('short','sell')
-            elif macd_osc[-1] < -10000:
+            elif macd_osc[-1] < -ppmacd:
                 trading('short','sell')
                 record_history('short','sell')
 
-        #if balance[1][0] or balance[0][0]: continue
-        if not balance[1][0] and macd_osc[-1] < -ppmacd and stoploss[1]+20<k:
+        if balance[1][0] or balance[0][0]: continue
+        if not balance[1][0] and macd_osc[-1] < -ppmacd and stoploss[1]+60<k:# and localextrema[3][-1] > -50:
             trading('long','buy')
             record_history('long','buy')
             profitprice_L = price+pp
             lossprice_L = price-ppl
             Lreached = 0
 
-        if not balance[0][0] and macd_osc[-1] > ppmacd and stoploss[0]+20<k:
+        #if not balance[0][0] and macd_osc[-1] > ppmacd and stoploss[0]+20<k:
+        if not balance[0][0] and macd_osc[-1]<0 and stoploss[0]+60<k and localextrema[0][-1][1]> ppmacd and macd_osc[-1]*macd_osc[-2]<0:
             trading('short','buy')
             record_history('short','buy')
             profitprice_s = price-pp
@@ -175,6 +181,10 @@ for h in range(start,last):
     print(h,'))',round(balance[1][2],2),'(',tradingcountL[0],p1,')',round(balance[0][2],2),'(',tradingcountS[0],p2,')',round(100*(float(daytics[-1][4])-float(daytics[0][4]))/float(daytics[0][4]),2))
     tradingcountS= [0,0]
     tradingcountL= [0,0]
+
+
+
+
 
 if 1==2:
     macd_osc.append(macd[-1] - macd_sig)
@@ -196,11 +206,11 @@ if 1==2:
 
     for i in range(4): localextrema[i].pop(0)
     for i, val in enumerate(localextrema[0]):
-        df.loc[val[0],'max'] = val[1] + 20
+        df.loc[val[0],'max'] = val[1]# + 2
     for i, val in enumerate(localextrema[1]):
-        df.loc[val[0],'min'] = val[1] - 20
+        df.loc[val[0],'min'] = val[1]# - 2
 
-    k = 1 #select position u wanna see (0=short,1=long)
+    k = 0#select position u wanna see (0=short,1=long)
     for i in range(4): history[i].pop(0)
     for i, val in enumerate(history[k]):
         df.loc[val[0],'buy_long'] = val[1] - 200
@@ -225,6 +235,10 @@ if 1==2:
     #fig = go.Figure(data=[candle,ma20,ma50,maxval,minval])
     fig = ms.make_subplots(rows=2, cols=1, shared_xaxes= True,shared_yaxes=False, vertical_spacing=0.02)
     fig.add_trace(candle, row=1,col=1)
+    fig.add_trace(history_BL, row=1,col=1)
+    fig.add_trace(history_SL, row=1,col=1)
+    fig.add_trace(maxval, row=2,col=1)
+    fig.add_trace(minval, row=2,col=1)
     #fig.add_trace(MACD,row=2,col=1)
     #fig.add_trace(MACD_Signal,row=2,col=1)
     fig.add_trace(MACD_Oscil,row=2,col=1)
