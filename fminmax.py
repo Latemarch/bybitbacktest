@@ -38,7 +38,6 @@ def record_history(position,bors):
     j = 0 if bors == 'buy' else 2
     history[i+j].append([candletime[-1]])
     history[i+j][-1].append(price)
-
 def local_extremum(a,list,maxormin):#a is half-length 
     c = a*2-1
     b = a-1
@@ -76,9 +75,8 @@ losstimeS = 0
 stoploss =[0,0]
 tradingcountS= [0,0]
 tradingcountL= [0,0]
-
 start = 0
-last = 40
+last = 20
 for h in range(start,last):
 
     with gzip.open('/Users/jun/btcusd/%03d.gz' % h, 'rb') as f:
@@ -142,7 +140,6 @@ for h in range(start,last):
 
         price = float(row[4])
         if balance[1][0]:#and stoploss[1]+20 < k :
-            stoploss[1] = 0
             if price < lossprice_L or price > profitprice_L:
                 trading('long','sell')
                 record_history('long','sell')
@@ -152,7 +149,6 @@ for h in range(start,last):
 
 
         if balance[0][0]:#
-            stoploss[0] = 0
             if lossprice_s < price or price < profitprice_s: 
                 trading('short','sell')
                 record_history('short','sell')

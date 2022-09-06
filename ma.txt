@@ -1,1 +1,4 @@
 []
+
+api_key = "DRxm8XPTcsmXhQV2A8"
+api_secret = "ws9UYb5A4ZNS08ZSDLPEwLG2glEwQTVmeFEv"
