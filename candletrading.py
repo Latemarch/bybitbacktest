@@ -1,34 +1,38 @@
-################ bybit WebSocket example. 
+from pybit import inverse_perpetual
+import time
+import pandas as pd
+import numpy as np
 
+ohlc = np.empty((1,4))
+ohlc = np.append(ohlc,[[10,10,10,10]],axis =0)
+ohlc = np.delete(ohlc,0, axis = 0)
 
-import asyncio 
-import websockets
-import json
+session_unauth = inverse_perpetual.HTTP(endpoint="https://api.bybit.com")
+ohlc_data= session_unauth.query_kline(
+    symbol="BTCUSD",
+    interval="1",
+    from_time= str(int(time.time() - 60*100))
+)
+df = pd.DataFrame.from_dict(ohlc_data['result'])
+df.set_index('open_time',inplace=True)
+for i in range(len(df)):
+    open= float(df.iloc[i]['open'])
+    high= float(df.iloc[i]['high'])
+    low= float(df.iloc[i]['low'])
+    close= float(df.iloc[i]['close'])
+    ohlc = np.append(ohlc,[[open,high,low,close]],axis=0)
+print(len(ohlc))
+print(df)
+print(ohlc[0])
+print(ohlc[-1])# [-2]까지 조사해야함. [-1]은 완성 캔들이 아님
+print(time.time())
 
-async def my_loop_WebSocket_bybit():
-    # 2021.09.04 error websockets version 9.1 only available version 8.1 async with websockets.client.Connect("wss://stream.bybit.com/realtime") as websocket:
-    async with websockets.connect("wss://stream.bybit.com/realtime") as websocket:# OK websockets version 9.1
-        print("Connected to bybit WebSocket");
-        await websocket.send('{"op":"subscribe","args":["trade.BTCUSD"]}');
-        data_rcv_response = await websocket.recv(); 
-        print("response for subscribe req. : " + data_rcv_response);
-
-        while True:
-            data_rcv_strjson = await websocket.recv(); 
-            data_rcv_dict = json.loads(data_rcv_strjson); # convert to Pyhton type dict 
-            data_trade_list = data_rcv_dict.get('data',0); 
-            if data_trade_list == 0:
-                continue
-            num_data_trade_list = len(data_trade_list); 
-            print("Num List : " + str(num_data_trade_list));
-            for data_trade_dict in data_trade_list : ## variable number of element(dictionary) in List per one packet. 
-                print("timestamp : " + data_trade_dict.get('timestamp',0) 
-                        + ", price : " + str(data_trade_dict.get('price',0))   
-                        + ", size : " + str(data_trade_dict.get('size',0)) 
-                        );
-            
-
-##### main exec 
-my_loop = asyncio.get_event_loop();  
-my_loop.run_until_complete(my_loop_WebSocket_bybit()); # loop for connect to WebSocket and receive data. 
-my_loop.close(); 
+'''
+opentime0 = ohlc[0]['open_time']
+opentime1 = ohlc[-1]['open_time']
+print(ohlc['result'][0]['open_time'])
+print(ohlc['result'][-1]['open_time'])
+print(type(ohlc['result'][0]['close']))
+print(time.strftime('%Y-%m-%d %H:%M:%S',time.localtime(float(opentime0))))
+print(time.strftime('%Y-%m-%d %H:%M:%S',time.localtime(float(opentime1))))
+'''
