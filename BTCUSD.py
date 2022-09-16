@@ -16,10 +16,10 @@ conn = pymysql.connect(
 curs = conn.cursor()
 '''
 
-apikey ='HkXvY2ig38HAGMrfHw'
-apisec = 'SCbxuKuwMl94fqWPiitJzdbqPbtxBuGiRw0D'
-apikeyt = 'Yy9dTzzJhz5m5oU6zl'
-apisect = 'xE90RRdzJoyay9m4eSsI3KWOIiRJbrGgCZVE'
+#apikeyt = 'Yy9dTzzJhz5m5oU6zl'
+#apisect = 'xE90RRdzJoyay9m4eSsI3KWOIiRJbrGgCZVE'
+apikey = "DRxm8XPTcsmXhQV2A8"
+apisec = "ws9UYb5A4ZNS08ZSDLPEwLG2glEwQTVmeFEv"
 client = bybit.bybit(test = False, api_key = apikey, api_secret = apisec)
 
 i = 0

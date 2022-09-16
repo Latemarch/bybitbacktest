@@ -13,7 +13,7 @@ import plotly.subplots as ms
 from pandas.core.frame import DataFrame
 #mac
 
-
+startcode = time.time()
 
 def trading(position, buyorsell):
     i = 1 if position == 'long' else 0
@@ -41,7 +41,7 @@ def record_history(position,bors):
 def local_extremum(a,list,maxormin):#a is half-length 
     c = a*2-1
     b = a-1
-    i = [0,1,2] if maxormin == 'max' else [1,0,3]
+    i = [0,1,2] if maxormin == 'max' else [1,0,3]#localextrema = [[[0,0]],[[0,0]],[0],[0]]
     if (i[0]==0 and np.argmax(list[-c:]) == b) or (i[0]==1 and np.argmin(list[-c:])==b):
         localextrema[i[0]].append([candletime[-a]])
         localextrema[i[0]][-1].append(list[-a])
@@ -76,7 +76,10 @@ stoploss =[0,0]
 tradingcountS= [0,0]
 tradingcountL= [0,0]
 start = 0
-last = 20
+last = 30 
+graph = 0 #1 true
+ma1 = []
+ma2 = []
 for h in range(start,last):
 
     with gzip.open('/Users/jun/btcusd/%03d.gz' % h, 'rb') as f:
@@ -100,8 +103,7 @@ for h in range(start,last):
     qty = 100/price
     pp = price*0.02
     ppl = pp/2
-    pp = price*0.01
-    ppmacd = pp/6
+    ppmacd = pp/14
     for i, row in enumerate(daytics):
         ohlc_list.append(float(row[4]))
         volume += (float(row[3]))
@@ -116,6 +118,9 @@ for h in range(start,last):
 
         # 1 min candle ==================================================
         if minute != tictime//60:
+            pp = price*0.02
+            ppl = pp/2
+            ppmacd = pp/14
             k+=1
             minute = tictime//60
             candletime.append(time.strftime('%Y-%m-%d %H:%M:%S',time.localtime(float(tictime))))
@@ -126,14 +131,22 @@ for h in range(start,last):
         # 1 min candle ==================================================
 
         ###### Here, U can write ur strategy. U have bundle of ticdata(got once) from bybit server 
-            ma1 = np.mean(ohlc[-12:,3])
-            ma2 = np.mean(ohlc[-26:,3])
+            ma1.append(float(np.mean(ohlc[-12:,3])))
+            ma2.append(float(np.mean(ohlc[-26:,3])))
             ma3 = np.mean(ohlc[-50:,3])
-            macd = np.append(macd,ma1-ma2)
+            macd = np.append(macd,ma1[-1]-ma2[-1])
             macd_sig = np.mean(macd[-9:])
             macd_osc.append(macd[-1] - macd_sig)
             local_extremum(20,macd_osc,'max')
             local_extremum(20,macd_osc,'min')
+            if not k > 50: continue
+            #========trying to calculate price making macd 0 and 100 =====
+            p_macd0=-25.0714*(0.889*(ma1[-1]-ma2[-1]-ohlc[-12,3]/12+ohlc[-26,3]/26)-macd_sig+macd[-9]/9)
+            p_macd100 = p_macd0 + 2507.14
+            #========trying to calculate price making macd 0 and 100 =====
+            if not balance[1][0] and macd_osc[-1] < -ppmacd and stoploss[1]+60<k:# and localextrema[3][-1] > -50:
+                permit_long = 1
+            else: permit_long = 0
 
         if not k > 50: continue
 
@@ -146,29 +159,38 @@ for h in range(start,last):
             elif macd_osc[-1] > ppmacd:
                 trading('long','sell')
                 record_history('long','sell')
+            #elif localextrema[1][-1][1] < macd_osc[-5] < macd_osc[-1]:
+            #    trading('long','sell')
+            #    record_history('long','sell')
+
 
 
         if balance[0][0]:#
             if lossprice_s < price or price < profitprice_s: 
                 trading('short','sell')
                 record_history('short','sell')
-            elif macd_osc[-1] < -ppmacd:
+            #elif macd_osc[-1] < -ppmacd:
+            #    trading('short','sell')
+            #    record_history('short','sell')
+            elif localextrema[0][-1][1] > macd_osc[-5] > macd_osc[-1]:
                 trading('short','sell')
                 record_history('short','sell')
 
         if balance[1][0] or balance[0][0]: continue
-        if not balance[1][0] and macd_osc[-1] < -ppmacd and stoploss[1]+60<k:# and localextrema[3][-1] > -50:
+        if permit_long and macd_osc[-2]< macd_osc[-1]:
+            permit_long = 0
             trading('long','buy')
             record_history('long','buy')
-            profitprice_L = price+pp
+            #print('Long',int(p_macd0-ppmacd*25.0714),int(p_macd0+macd_osc[-1]*25.0714),'/',price)
+            profitprice_L = price+pp/2
             lossprice_L = price-ppl
             Lreached = 0
 
-        #if not balance[0][0] and macd_osc[-1] > ppmacd and stoploss[0]+20<k:
-        if not balance[0][0] and macd_osc[-1]<0 and stoploss[0]+60<k and localextrema[0][-1][1]> ppmacd and macd_osc[-1]*macd_osc[-2]<0:
+        #if not balance[0][0] and macd_osc[-1]>0 and stoploss[0]+60<k and localextrema[0][-1][1]> ppmacd and p_macd0 >price: 
+        if not balance[0][0] and macd_osc[-1]>ppmacd and stoploss[0]+60<k: 
             trading('short','buy')
             record_history('short','buy')
-            profitprice_s = price-pp
+            profitprice_s = price-pp/4
             lossprice_s = price+ppl
 
 
@@ -182,7 +204,7 @@ for h in range(start,last):
 
 
 
-if 1==2:
+if 1==graph:
     macd_osc.append(macd[-1] - macd_sig)
     #=============== Candle Chart =================
     index = pd.DatetimeIndex(candletime)
@@ -209,9 +231,9 @@ if 1==2:
     k = 0#select position u wanna see (0=short,1=long)
     for i in range(4): history[i].pop(0)
     for i, val in enumerate(history[k]):
-        df.loc[val[0],'buy_long'] = val[1] - 200
+        df.loc[val[0],'buy_long'] = val[1] + 200
     for i, val in enumerate(history[k+2]):
-        df.loc[val[0],'sell_long'] = val[1] + 200
+        df.loc[val[0],'sell_long'] = val[1] - 200
 
     ma10 = go.Scatter(x=df.index, y=df['ma10'], line=dict(color='black', width=0.8), name='ma20')
     ma20 = go.Scatter(x=df.index, y=df['ma20'], line=dict(color='green', width=0.8), name='ma50')
@@ -256,7 +278,7 @@ if 1==2:
     '''
 
 
-
+print("time :",time.time()-startcode)
 
 
 
