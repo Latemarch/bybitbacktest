@@ -118,9 +118,6 @@ for h in range(start,last):
 
         # 1 min candle ==================================================
         if minute != tictime//60:
-            pp = price*0.02
-            ppl = pp/2
-            ppmacd = pp/14
             k+=1
             minute = tictime//60
             candletime.append(time.strftime('%Y-%m-%d %H:%M:%S',time.localtime(float(tictime))))
@@ -144,7 +141,7 @@ for h in range(start,last):
             p_macd0=-25.0714*(0.889*(ma1[-1]-ma2[-1]-ohlc[-12,3]/12+ohlc[-26,3]/26)-macd_sig+macd[-9]/9)
             p_macd100 = p_macd0 + 2507.14
             #========trying to calculate price making macd 0 and 100 =====
-            if not balance[1][0] and macd_osc[-1] < -ppmacd and stoploss[1]+60<k:# and localextrema[3][-1] > -50:
+            if not balance[1][0] and macd_osc[-1] < -ppmacd and stoploss[1]+30<k:# and localextrema[3][-1] > -50:
                 permit_long = 1
             else: permit_long = 0
 

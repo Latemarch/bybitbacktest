@@ -1,4 +1,5 @@
 from pybit import inverse_perpetual
+import bybit
 import time
 import pandas as pd
 import numpy as np
@@ -7,25 +8,58 @@ import asyncio
 import websockets
 import json
 import time
-import bybit
+import hmac
 
 apikey = "DRxm8XPTcsmXhQV2A8"
 apisec = "ws9UYb5A4ZNS08ZSDLPEwLG2glEwQTVmeFEv"
-Order = inverse_perpetual.HTTP(
+client = bybit.bybit(test = False, api_key = apikey, api_secret = apisec)
+def get_args_secret(_api_key, _api_secrete):
+        expires = str(int(round(time.time())+5000))+"000"
+        _val = 'GET/realtime' + expires
+        signature = str(hmac.new(bytes(_api_secrete, "utf-8"), bytes(_val, "utf-8"), digestmod="sha256").hexdigest())
+        auth = {}
+        auth["op"] = "auth"
+        auth["args"] = [_api_key, expires, signature]
+        args_secret = json.dumps(auth)
+        return  args_secret
+
+session_auth = inverse_perpetual.HTTP(
     endpoint="https://api.bybit.com",
     api_key=apikey,
     api_secret=apisec
 )
-def oorder(qty_):
-    Order.place_active_order(
+def Order_Market(side_,qty_):
+    return session_auth.place_active_order(
         symbol="BTCUSD",
-        side="Buy",
-        order_type="Market",
+        side=side_,
+        order_type="Limit",
         qty=qty_,
         time_in_force="GoodTillCancel"
-    )
-oorder(1)
+    )['result']
+def Order_Limit(side_,qty_,price_,loss_):
+    return session_auth.place_active_order(
+        symbol="BTCUSD",
+        side=side_,
+        order_type="Limit",
+        qty=qty_,
+        price = price_,
+        stop_loss = loss_,
+        time_in_force="GoodTillCancel"
+    )['result']
+def Order_Reduceonly(side_,qty_,price_):
+    return session_auth.place_active_order(
+        symbol="BTCUSD",
+        side=side_,
+        order_type="Limit",
+        qty=qty_,
+        price = price_,
+        time_in_force="GoodTillCancel",
+        reduce_only =True 
+    )['result']
+#result = Order_Market("Buy",1)
+#print(result['price'],result['qty'])
 
+session_auth.cancel_all_active_orders(symbol="BTCUSD")
 #Got the data past 100 mins
 ohlc = np.empty((1,5))
 ohlc = np.append(ohlc,[[10,10,10,10,10]],axis =0)
@@ -63,9 +97,12 @@ for i in range(30,0,-1):
 macd_sig = np.mean(macd[-9:])
 macd_osc.append(macd[-1] - macd_sig)
 
-
+pp = ohlc[-1,3]*0.02
+ppl = pp/2
+ppmacd = pp/14
+k = 0
 #=============================
-async def my_loop_WebSocket_bybit(macd,ohlc,ma1,ma2,macd_osc):
+async def my_loop_WebSocket_bybit(macd,ohlc,ma1,ma2,macd_osc,k):
     async with websockets.connect("wss://stream.bybit.com/realtime") as websocket:
         print("Connected to bybit WebSocket")
         await websocket.send('{"op":"subscribe","args":["klineV2.1.BTCUSD"]}')
@@ -83,17 +120,29 @@ async def my_loop_WebSocket_bybit(macd,ohlc,ma1,ma2,macd_osc):
                     print(datetime.datetime.now())
                     data = data_trade_dict
                 else: continue 
+                k+=1
                 #Finding "confirm == Ture" and, once finding, following code is working but 'break' makes following code doesn't work twice in same 'data bundle' 
-                #print(time.strftime('%Y-%m-%d %H:%M:%S',time.localtime(float(data['start']))))
+                print(time.strftime('%Y-%m-%d %H:%M:%S',time.localtime(float(data['start']))))
                 ohlc=np.append(ohlc,[[float(data['open']),float(data['high']),float(data['low']),float(data['close']),float(data['volume'])]],axis=0)
+                price = ohlc[-1,3]
                 #========= Trading Strategy ============#
+                position = session_auth.my_position(symbol="BTCUSD")['result']
+
                 ma1.append(float(np.mean(ohlc[-12-i:,3])))
                 ma2.append(float(np.mean(ohlc[-26-i:,3])))
                 macd = np.append(macd,ma1[-1]-ma2[-1])
                 macd_sig = np.mean(macd[-9:])
                 macd_osc.append(macd[-1] - macd_sig)
                 p_macd0=-25.0714*(0.889*(ma1[-1]-ma2[-1]-ohlc[-12,3]/12+ohlc[-26,3]/26)-macd_sig+macd[-9]/9)
-                print('Made Limit reduceonly')
+                
+                if not position['side']:
+                    if macd_osc[-1] < -ppmacd and stoplong + 60 < k:
+                        Order_Limit("Buy",10,price-1,int(price*0.99))
+                elif position['side'] == 'Buy':
+                        Order_Reduceonly("Sell",position['size'],int(price*1.01))
+                    
+
+                    
                 
                 #========= Trading Strategy ============#
                 break#prevent finding "confirm == True" in same data bundle 
@@ -103,5 +152,5 @@ async def my_loop_WebSocket_bybit(macd,ohlc,ma1,ma2,macd_osc):
 
 ##### main exec 
 my_loop = asyncio.get_event_loop();  
-my_loop.run_until_complete(my_loop_WebSocket_bybit(macd,ohlc,ma1,ma2,macd_osc)); # loop for connect to WebSocket and receive data. 
+my_loop.run_until_complete(my_loop_WebSocket_bybit(macd,ohlc,ma1,ma2,macd_osc,k)); # loop for connect to WebSocket and receive data. 
 my_loop.close(); 
