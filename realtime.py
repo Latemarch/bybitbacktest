@@ -101,8 +101,10 @@ pp = ohlc[-1,3]*0.02
 ppl = pp/2
 ppmacd = pp/14
 k = 0
+preposition = session_auth.my_position(symbol="BTCUSD")['result']
 #=============================
-async def my_loop_WebSocket_bybit(macd,ohlc,ma1,ma2,macd_osc,k):
+async def my_loop_WebSocket_bybit(macd,ohlc,ma1,ma2,macd_osc,k,preposition):
+    stoplong = 0
     async with websockets.connect("wss://stream.bybit.com/realtime") as websocket:
         print("Connected to bybit WebSocket")
         await websocket.send('{"op":"subscribe","args":["klineV2.1.BTCUSD"]}')
@@ -127,6 +129,8 @@ async def my_loop_WebSocket_bybit(macd,ohlc,ma1,ma2,macd_osc,k):
                 price = ohlc[-1,3]
                 #========= Trading Strategy ============#
                 position = session_auth.my_position(symbol="BTCUSD")['result']
+                if preposition['side'] != "Buy" and position['side'] == "None":
+                    stoplong = k
 
                 ma1.append(float(np.mean(ohlc[-12-i:,3])))
                 ma2.append(float(np.mean(ohlc[-26-i:,3])))
@@ -136,10 +140,12 @@ async def my_loop_WebSocket_bybit(macd,ohlc,ma1,ma2,macd_osc,k):
                 p_macd0=-25.0714*(0.889*(ma1[-1]-ma2[-1]-ohlc[-12,3]/12+ohlc[-26,3]/26)-macd_sig+macd[-9]/9)
                 
                 if not position['side']:
-                    if macd_osc[-1] < -ppmacd and stoplong + 60 < k:
+                    if macd_osc[-1] < -ppmacd and stoplong + 50 < k:
                         Order_Limit("Buy",10,price-1,int(price*0.99))
                 elif position['side'] == 'Buy':
                         Order_Reduceonly("Sell",position['size'],int(price*1.01))
+
+                preposition = position
                     
 
                     
@@ -152,5 +158,5 @@ async def my_loop_WebSocket_bybit(macd,ohlc,ma1,ma2,macd_osc,k):
 
 ##### main exec 
 my_loop = asyncio.get_event_loop();  
-my_loop.run_until_complete(my_loop_WebSocket_bybit(macd,ohlc,ma1,ma2,macd_osc,k)); # loop for connect to WebSocket and receive data. 
+my_loop.run_until_complete(my_loop_WebSocket_bybit(macd,ohlc,ma1,ma2,macd_osc,k,preposition)); # loop for connect to WebSocket and receive data. 
 my_loop.close(); 
