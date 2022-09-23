@@ -9,8 +9,8 @@ import json
 import time
 import hmac
 
-apikey = "DRxm8XPTcsmXhQV2A8"
-apisec = "ws9UYb5A4ZNS08ZSDLPEwLG2glEwQTVmeFEv"
+apikey = "EvW4IWaiFzWJDgFmGz"
+apisec = "ctzpTH1LJcldPna4JU0WGGl8lV3yt3qtgOVt"
 def get_args_secret(_api_key, _api_secrete):
         expires = str(int(round(time.time())+5000))+"000"
         _val = 'GET/realtime' + expires
@@ -119,7 +119,6 @@ async def my_loop_WebSocket_bybit(macd,ohlc,ma1,ma2,macd_osc,k,preposition,preeq
                 continue
             for data_trade_dict in data_trade_list:
                 if data_trade_dict['confirm'] == True:
-                    print(datetime.datetime.now())
                     data = data_trade_dict
                 else: continue 
                 k+=1
@@ -154,7 +153,7 @@ async def my_loop_WebSocket_bybit(macd,ohlc,ma1,ma2,macd_osc,k,preposition,preeq
                     else:
                         print(macd_osc[-1],'/',-ppmacd)
                 elif position['side'] == 'Buy':
-                        Order_Reduceonly("Sell",position['size'],int(price*1.01))
+                        Order_Reduceonly("Sell",position['size'],max(int(position["price"]*1.01),price+1))
 
                 preposition = position
                     
