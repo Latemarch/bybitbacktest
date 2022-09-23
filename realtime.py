@@ -1,5 +1,4 @@
 from pybit import inverse_perpetual
-import bybit
 import time
 import pandas as pd
 import numpy as np
@@ -12,7 +11,6 @@ import hmac
 
 apikey = "DRxm8XPTcsmXhQV2A8"
 apisec = "ws9UYb5A4ZNS08ZSDLPEwLG2glEwQTVmeFEv"
-client = bybit.bybit(test = False, api_key = apikey, api_secret = apisec)
 def get_args_secret(_api_key, _api_secrete):
         expires = str(int(round(time.time())+5000))+"000"
         _val = 'GET/realtime' + expires
@@ -126,35 +124,38 @@ async def my_loop_WebSocket_bybit(macd,ohlc,ma1,ma2,macd_osc,k,preposition,preeq
                 else: continue 
                 k+=1
                 #Finding "confirm == Ture" and, once finding, following code is working but 'break' makes following code doesn't work twice in same 'data bundle' 
-                print(time.strftime('%Y-%m-%d %H:%M:%S',time.localtime(float(data['start']))))
+                #print(time.strftime('%Y-%m-%d %H:%M:%S',time.localtime(float(data['start']))))
                 ohlc=np.append(ohlc,[[float(data['open']),float(data['high']),float(data['low']),float(data['close']),float(data['volume'])]],axis=0)
                 price = ohlc[-1,3]
                 #========= Trading Strategy ============#
                 position = session_auth.my_position(symbol="BTCUSD")['result']
-                if preposition['side'] != "Buy" and position['side'] == "None":
+                if preposition['side'] == "Buy" and position['side'] == "None":
                     print(time.strftime('%Y-%m-%d %H:%M:%S',time.localtime(float(data['start']))))
-                    print(equity,'/',round(1-equity/preequity,2))
                     stoplong = k
                     equity = session_auth.get_wallet_balance(coin="BTC")['result']['BTC']['equity']
+                    print(equity,'/',round(1-equity/preequity,2))
                     if equity < preequity:
                         losscount += 1
                     else:
                         losscount -= 1
+                    preequity = equity
 
-                ma1.append(float(np.mean(ohlc[-12-i:,3])))
-                ma2.append(float(np.mean(ohlc[-26-i:,3])))
+                ma1.append(float(np.mean(ohlc[-12:,3])))
+                ma2.append(float(np.mean(ohlc[-26:,3])))
                 macd = np.append(macd,ma1[-1]-ma2[-1])
                 macd_sig = np.mean(macd[-9:])
                 macd_osc.append(macd[-1] - macd_sig)
-                p_macd0=-25.0714*(0.889*(ma1[-1]-ma2[-1]-ohlc[-12,3]/12+ohlc[-26,3]/26)-macd_sig+macd[-9]/9)
+                #p_macd0=-25.0714*(0.889*(ma1[-1]-ma2[-1]-ohlc[-12,3]/12+ohlc[-26,3]/26)-macd_sig+macd[-9]/9)
                 
-                if not position['side']:
+                if position['side'] == "None":
                     if macd_osc[-1] < -ppmacd and stoplong + 50 < k:
                         Order_Limit("Buy",10,price-1,int(price*0.99))
+                        print("Place Order")
+                    else:
+                        print(macd_osc[-1],'/',-ppmacd)
                 elif position['side'] == 'Buy':
                         Order_Reduceonly("Sell",position['size'],int(price*1.01))
 
-                preequity = equity
                 preposition = position
                     
 
