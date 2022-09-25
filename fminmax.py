@@ -90,7 +90,7 @@ for h in range(start,last):
         daytics.append(row.decode('utf-8').split(','))
     
     del daytics[0]
-    daytics.reverse()
+    #daytics.reverse()
 
     if h == start:
         price = float(daytics[1][4])
@@ -105,6 +105,8 @@ for h in range(start,last):
     ppl = pp/2
     ppmacd = pp/14
     for i, row in enumerate(daytics):
+        if i == 0:
+            print(row[0])
         ohlc_list.append(float(row[4]))
         volume += (float(row[3]))
 
@@ -189,6 +191,7 @@ for h in range(start,last):
             record_history('short','buy')
             profitprice_s = price-pp/4
             lossprice_s = price+ppl
+    print(row[0])  
 
 
     p1 = tradingcountL[0]+tradingcountL[1]
@@ -250,6 +253,8 @@ if 1==graph:
     #fig = go.Figure(data=[candle,ma20,ma50,maxval,minval])
     fig = ms.make_subplots(rows=2, cols=1, shared_xaxes= True,shared_yaxes=False, vertical_spacing=0.02)
     fig.add_trace(candle, row=1,col=1)
+    fig.add_trace(ma10, row=1,col=1)
+    fig.add_trace(ma20, row=1,col=1)
     fig.add_trace(history_BL, row=1,col=1)
     fig.add_trace(history_SL, row=1,col=1)
     fig.add_trace(maxval, row=2,col=1)
