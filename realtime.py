@@ -97,7 +97,7 @@ macd_osc.append(macd[-1] - macd_sig)
 
 pp = ohlc[-1,3]*0.02
 ppl = pp/2
-ppmacd = pp/14
+ppmacd = pp/20
 k = 0
 preposition = session_auth.my_position(symbol="BTCUSD")['result']
 preequity = session_auth.get_wallet_balance(coin="BTC")['result']['BTC']['equity']
@@ -105,6 +105,7 @@ losscount = 0
 stoplong = -100
 #=============================
 async def my_loop_WebSocket_bybit(macd,ohlc,ma1,ma2,macd_osc,k,preposition,preequity,losscount,stoplong):
+    min = 0
     async with websockets.connect("wss://stream.bybit.com/realtime") as websocket:
         print("Connected to bybit WebSocket")
         await websocket.send('{"op":"subscribe","args":["klineV2.1.BTCUSD"]}')
@@ -137,6 +138,8 @@ async def my_loop_WebSocket_bybit(macd,ohlc,ma1,ma2,macd_osc,k,preposition,preeq
                         losscount += 1
                     else:
                         losscount -= 1
+                    if losscount > 10:
+                        break
                     preequity = equity
 
                 ma1.append(float(np.mean(ohlc[-12:,3])))
@@ -151,9 +154,10 @@ async def my_loop_WebSocket_bybit(macd,ohlc,ma1,ma2,macd_osc,k,preposition,preeq
                         Order_Limit("Buy",10,price-1,int(price*0.99))
                         print("Place Order")
                     else:
-                        print(macd_osc[-1],'/',-ppmacd)
+                        if min>macd_osc[-1]: min=macd_osc[-1]
+                        print(min, macd_osc[-1],'/',-ppmacd)
                 elif position['side'] == 'Buy':
-                        Order_Reduceonly("Sell",position['size'],max(int(position["price"]*1.01),price+1))
+                        Order_Reduceonly("Sell",position['size'],max(int(float(position["entry_price"])*1.01),price+1))
 
                 preposition = position
                     
