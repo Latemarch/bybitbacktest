@@ -75,9 +75,9 @@ losstimeS = 0
 stoploss =[0,0]
 tradingcountS= [0,0]
 tradingcountL= [0,0]
-start = 0
-last = 30 
-graph = 0 #1 true
+start = 101 
+last = 103
+graph = 1 #1 true
 ma1 = []
 ma2 = []
 for h in range(start,last):
@@ -254,8 +254,8 @@ if 1==graph:
     fig.add_trace(history_SL, row=1,col=1)
     fig.add_trace(maxval, row=2,col=1)
     fig.add_trace(minval, row=2,col=1)
-    #fig.add_trace(MACD,row=2,col=1)
-    #fig.add_trace(MACD_Signal,row=2,col=1)
+    fig.add_trace(MACD,row=2,col=1)
+    fig.add_trace(MACD_Signal,row=2,col=1)
     fig.add_trace(MACD_Oscil,row=2,col=1)
     #fig.add_trace(volume_bar, row=2,col=1)
     fig.update_layout(title='BTCUSD', xaxis1_rangeslider_visible = False)
