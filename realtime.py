@@ -129,10 +129,11 @@ async def my_loop_WebSocket_bybit(macd,ohlc,ma1,ma2,macd_osc,k,preposition,preeq
                 price = ohlc[-1,3]
                 #========= Trading Strategy ============#
                 position = session_auth.my_position(symbol="BTCUSD")['result']
+                active_order = session_auth.get_active_order(symbol = "BTCUSD",order_status ="New")["result"]['data']
                 if preposition['side'] == "Buy" and position['side'] == "None":
-                    print(time.strftime('%Y-%m-%d %H:%M:%S',time.localtime(float(data['start']))))
                     stoplong = k
                     equity = session_auth.get_wallet_balance(coin="BTC")['result']['BTC']['equity']
+                    print(time.strftime('%Y-%m-%d %H:%M:%S',time.localtime(float(data['start']))))
                     print(equity,'/',round(1-equity/preequity,2))
                     if equity < preequity:
                         losscount += 1
@@ -149,16 +150,20 @@ async def my_loop_WebSocket_bybit(macd,ohlc,ma1,ma2,macd_osc,k,preposition,preeq
                 macd_osc.append(macd[-1] - macd_sig)
                 #p_macd0=-25.0714*(0.889*(ma1[-1]-ma2[-1]-ohlc[-12,3]/12+ohlc[-26,3]/26)-macd_sig+macd[-9]/9)
                 
-                session_auth.cancel_all_active_orders(symbol="BTCUSD")
                 
                 if position['side'] == "None":
                     if macd_osc[-1] < -ppmacd and stoplong + 50 < k:
+                        session_auth.cancel_all_active_orders(symbol="BTCUSD")
                         Order_Limit("Buy",10,price-1,int(price*0.99))
                         print("Place Order")
                     else:
+                        session_auth.cancel_all_active_orders(symbol="BTCUSD")
                         if min>macd_osc[-1]: min=macd_osc[-1]
                         print(min, macd_osc[-1],'/',-ppmacd)
                 elif position['side'] == 'Buy':
+                    if position['size'] != 10:
+                        session_auth.cancel_all_active_orders(symbol="BTCUSD")
+                    if not active_order:
                         Order_Reduceonly("Sell",position['size'],max(int(float(position["entry_price"])*1.01),price+1))
 
                 preposition = position

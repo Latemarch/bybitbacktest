@@ -1,47 +1,38 @@
-import hmac
+from pybit import inverse_perpetual
+import time
+import pandas as pd
+import numpy as np
+import datetime
+import asyncio 
+import websockets
 import json
 import time
-import websocket
+import hmac
 
-ws_url = "wss://stream.bybit.com/realtime"
+apikey = "EvW4IWaiFzWJDgFmGz"
+apisec = "ctzpTH1LJcldPna4JU0WGGl8lV3yt3qtgOVt"
+def get_args_secret(_api_key, _api_secrete):
+        expires = str(int(round(time.time())+5000))+"000"
+        _val = 'GET/realtime' + expires
+        signature = str(hmac.new(bytes(_api_secrete, "utf-8"), bytes(_val, "utf-8"), digestmod="sha256").hexdigest())
+        auth = {}
+        auth["op"] = "auth"
+        auth["args"] = [_api_key, expires, signature]
+        args_secret = json.dumps(auth)
+        return  args_secret
 
-api_key = "DRxm8XPTcsmXhQV2A8"
-api_secret = "ws9UYb5A4ZNS08ZSDLPEwLG2glEwQTVmeFEv"
-
-# Generate expires.
-expires = int((time.time() + 1) * 1000)
-
-# Generate signature.
-signature = str(hmac.new(
-    bytes(api_secret, "utf-8"),
-    bytes(f"GET/realtime{expires}", "utf-8"), digestmod="sha256"
-).hexdigest())
-
-param = "api_key={api_key}&expires={expires}&signature={signature}".format(
-    api_key=api_key,
-    expires=expires,
-    signature=signature
+session_auth = inverse_perpetual.HTTP(
+    endpoint="https://api.bybit.com",
+    api_key=apikey,
+    api_secret=apisec
 )
-url = ws_url + "?" + param
+active_order = session_auth.get_active_order(symbol = "BTCUSD",order_status ="New")["result"]['data']
+data = active_order#['data']
+if not active_order:
+    print('Nothing order')
+print(data)
+print(len(data))
+for val in data:
+    print(val['side'],val['price'])
 
-ws = websocket.WebSocketApp(url=url)
 
-ws.send('{"op": "subscribe", "args": ["orderBookL2_25.BTCUSD"]}')
-
-from time import sleep
-from pybit import inverse_perpetual
-ws_inverseP = inverse_perpetual.WebSocket(
-    test=False,
-    ping_interval=30,  # the default is 30
-    ping_timeout=10,  # the default is 10
-    domain="bybit"  # the default is "bybit"
-)
-def handle_message(msg):
-    print(msg)
-# To subscribe to multiple symbols,
-# pass a list: ["BTCUSD", "ETHUSD"]
-ws_inverseP.orderbook_25_stream(
-    handle_message, "BTCUSD"
-)
-while True:
-    sleep(1)
