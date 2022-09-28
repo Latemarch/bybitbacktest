@@ -152,14 +152,19 @@ async def my_loop_WebSocket_bybit(macd,ohlc,ma1,ma2,macd_osc,k,preposition,preeq
                 
                 
                 if position['side'] == "None":
-                    if macd_osc[-1] < -ppmacd and stoplong + 50 < k:
+                    if active_order:
                         session_auth.cancel_all_active_orders(symbol="BTCUSD")
+                        time.sleep(1)
+
+                    if macd_osc[-1] < -ppmacd and stoplong + 50 < k:
                         Order_Limit("Buy",10,price-1,int(price*0.99))
                         print("Place Order")
                     else:
-                        session_auth.cancel_all_active_orders(symbol="BTCUSD")
+                        if active_order:
+                            session_auth.cancel_all_active_orders(symbol="BTCUSD")
                         if min>macd_osc[-1]: min=macd_osc[-1]
                         print(min, macd_osc[-1],'/',-ppmacd)
+
                 elif position['side'] == 'Buy':
                     if position['size'] != 10:
                         session_auth.cancel_all_active_orders(symbol="BTCUSD")
