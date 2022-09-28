@@ -106,6 +106,7 @@ for h in range(start,last):
     ppmacd = pp/14
     for i, row in enumerate(daytics):
         if i == 0:
+            stime = row[0]
             print(row[0])
         ohlc_list.append(float(row[4]))
         volume += (float(row[3]))
@@ -191,7 +192,8 @@ for h in range(start,last):
             record_history('short','buy')
             profitprice_s = price-pp/4
             lossprice_s = price+ppl
-    print(row[0])  
+    if stime > row[0]:
+        print(row[0])  
 
 
     p1 = tradingcountL[0]+tradingcountL[1]

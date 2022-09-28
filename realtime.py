@@ -130,6 +130,9 @@ async def my_loop_WebSocket_bybit(macd,ohlc,ma1,ma2,macd_osc,k,preposition,preeq
                 #========= Trading Strategy ============#
                 position = session_auth.my_position(symbol="BTCUSD")['result']
                 active_order = session_auth.get_active_order(symbol = "BTCUSD",order_status ="New")["result"]['data']
+                if len(active_order) > 1:
+                    session_auth.cancel_all_active_orders(symbol="BTCUSD")
+
                 if preposition['side'] == "Buy" and position['side'] == "None":
                     stoplong = k
                     equity = session_auth.get_wallet_balance(coin="BTC")['result']['BTC']['equity']
@@ -160,8 +163,6 @@ async def my_loop_WebSocket_bybit(macd,ohlc,ma1,ma2,macd_osc,k,preposition,preeq
                         Order_Limit("Buy",10,price-1,int(price*0.99))
                         print("Place Order")
                     else:
-                        if active_order:
-                            session_auth.cancel_all_active_orders(symbol="BTCUSD")
                         if min>macd_osc[-1]: min=macd_osc[-1]
                         print(min, macd_osc[-1],'/',-ppmacd)
 

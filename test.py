@@ -1,3 +1,4 @@
+from smtplib import SMTPResponseException
 from pybit import inverse_perpetual
 import time
 import pandas as pd
@@ -34,5 +35,6 @@ print(data)
 print(len(data))
 for val in data:
     print(val['side'],val['price'])
-
+print(data[0]['order_id'])
+session_auth.replace_active_order(symbol="BTCUSD",order_id =data[0]['order_id'],p_r_price = 18001)
 
